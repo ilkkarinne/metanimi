@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Metanimi Weather Radar Animation - Southern Finland</title>
+  <script type="text/javascript" src="lib/jquery-1.9.1.js"></script>
+  <script type="text/javascript" src="lib/jquery.mousewheel.js"></script>
+  <script type="text/javascript" src="lib/underscore-min.js"></script>
+  <script type="text/javascript" src="lib/moment.min.js"></script>
+  <script type="text/javascript" src="lib/raphael-min.js"></script>
+  <script type="text/javascript" src="js/video-animator.js"></script>
+	<script type="text/javascript" src="js/scrolling-calendar.js"></script>
+  <script type="text/javascript">
+    $(function() {
+			var start = moment('2013-11-30','YYYY-MM-DD');
+			var end = moment().startOf('day');
+			var thumbnailProvider = function(time){
+				if (time.isAfter(start) && time.isBefore(end)){
+					return "http://data.metanimi.com.s3-website-eu-west-1.amazonaws.com/thumbs/radar/fin_south/thumbs_"+time.format('YYYY-MM')+".png";					
+				}
+				else {
+					return "";
+				}
+			};
+			
+      var anim = new com.metanimi.VideoAnimator($('#container'),
+				'http://data.metanimi.com.s3-website-eu-west-1.amazonaws.com/video/radar/daily/fin_south/',thumbnailProvider, function(){
+					anim.setTime(moment(end).subtract(2,'days'));
+				});
+			var cal = new com.metanimi.ScrollingCalendar($('#calcontainer'),start,end,thumbnailProvider);
+			
+			anim.registerCalendarComponent({
+				open: function(currentTime){
+					$('#calcontainer').show(500,function(){
+						cal.scrollTo(currentTime);						
+					});
+				},
+				addSelectionListener: function(listener){
+					cal.addSelectionListener(function(time){
+						$('#calcontainer').hide(300, function(){
+							listener(time);								
+						});
+					});
+				}
+			});
+			
+    });
+  </script>      
+  <style>
+  #container {
+    position:absolute;
+    left:0;
+    top:0;
+    width:100%;
+    height:100%;
+  }
+ 	#calcontainer {
+		font-family: Helvetica;
+		display:none;
+		position:absolute;
+		left:50%;
+		top:50%;
+		width:1280px;
+		height:720px;
+		margin-top:-360px;
+		margin-left:-640px;
+		z-index: 100;
+		background-color: white;
+		border-top-left-radius: 3px;
+		border-top-right-radius: 3px;
+		border-bottom-left-radius: 3px;
+		border-bottom-right-radius: 3px;
+		-moz-border-top-left-radius: 3px;
+		-moz-border-top-right-radius: 3px;
+		-moz-border-bottom-left-radius: 3px;
+		-moz-border-bottom-right-radius: 3px;
+		box-shadow: 5px 5px 2px #888888;
+		border-color: #e6e6e6;
+		border-style: solid;
+		border-width: 1px;
+	}
+	.calheading {
+		margin-top:0.5em;
+		text-align: center;
+		margin-bottom:0.5em;
+	}
+	
+	.day {
+		border-style:solid;
+		border-width:1px;
+		border-color:rgb(245,245,245);
+		color: #555555;
+		text-align: right;
+	}
+	.monthbegin {
+		font-weight: bold;
+	}
+	
+	.yearbegin {
+		font-weight: bold;
+	}
+	
+	.selected {
+		border-color:rgb(200,100,100);
+	}
+	
+	.saturday {
+		color: #888888;
+	} 
+	.sunday {
+		color:#aa5555;
+	} 
+	
+	.notallowed {
+		background-color:rgb(240,240,240);
+	}
+	
+	.notallowed .thumb {
+		display:none;
+	}
+	
+	#logo {
+		position: absolute;
+		top:0;
+		left:0;
+		width:160px;
+		height:80px;
+		background-image: url('logo_transp_small.png');
+		background-repeat: no-repeat;
+		background-position-x: 10px;
+		background-position-y: 5px;
+		padding-top: 70px;
+		padding-left: 1em;
+		font-family: Helvetica, Arial, sans-serif;
+		color: #888888;
+		text-align:center;
+	}
+	#logo h2 {
+		font-size: 10pt;
+	}
+	
+	#logo p {		
+		font-size: 10pt;
+	}
+	
+  .display {
+    position: absolute;
+    left:0;
+    top:0;
+    max-width: 1280px;
+    max-height: 720px;
+    height:100%;
+  }
+  .clock {
+    position: absolute;
+    left: 0px;
+    top:150px;
+    width: 200px;
+    height:100px;
+		text-align: center;
+  }
+  .dayindicator {
+    position: absolute;
+    left: 20px;
+    top:260px;
+    width: 160px;
+    height:100px;
+		text-align:center;
+  }
+  </style>
+</head>
+<body>
+  <div id="container"></div>
+  <div id="logo">
+	<h2>Weather radar, 5 min rain rate</h2>
+	<p>Southern Finland</p>
+	</div>
+	<div id="calcontainer"></div>
+</body>
+</html>
