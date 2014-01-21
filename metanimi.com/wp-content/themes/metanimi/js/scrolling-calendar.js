@@ -39,6 +39,11 @@ com.metanimi.ScrollingCalendar = (function() {
 		_container = $('<div></div>').css({'position':'absolute','top':'0px','left':'0px','width':'100%','height':totalHeight+'px','margin':'10px'});
 		_scroller.append(_container);
 		var heading = $('<h2></h2>').addClass('calheading').text('Index');
+	    var closeButton = $('<i></i>').addClass('close-button fa fa-times-circle');
+	    closeButton.on('click', function(e){
+		dayWasClicked(null);
+	    });
+	    heading.append(closeButton);
 		containers.append(heading);
 		containers.append(_scroller).css({'overflow':'hidden'});
 		
@@ -93,7 +98,7 @@ com.metanimi.ScrollingCalendar = (function() {
 					thumb = $('<div></div>').css({
 							'width':_thumbWidth+'px',
 							'height':_thumbHeight+'px',
-							'background-position-y':'0px',
+							'background-position':'0px 0px',
 							'background-repeat':'no-repeat',
 							'margin-left':'auto',
 							'margin-right':'auto',
@@ -130,7 +135,7 @@ com.metanimi.ScrollingCalendar = (function() {
 		_.each(week.days,function(day){
 			day.elem.attr('title',t.format('dddd, MMMM Do YYYY'));
 			day.elem.find('.label').text(getLabelFor(t));
-			day.elem.find('.thumb').css({'background-image':'url('+getMonthThumbsUrl(t)+')','background-position-x':'-'+getMonthThumbSpritePos(t)+'px'});
+			day.elem.find('.thumb').css({'background-image':'url('+getMonthThumbsUrl(t)+')','background-position':'-'+getMonthThumbSpritePos(t)+'px 0px'});
 			day.elem.prop('data-time',t.format('YYYY-MM-DD'));
 			if (t.isBefore(_minTime,'day')){
 				day.elem.addClass('notallowed');

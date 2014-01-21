@@ -16,9 +16,6 @@
 
 </footer>
 
-<?php wp_footer(); ?>
-
-<?php if ( is_singular() ) wp_print_scripts( 'comment-reply' ); ?>
 <!-- AddThis Button BEGIN -->
 <div class="addthis_toolbox addthis_floating_style addthis_32x32_style">
 <a class="addthis_button_preferred_1"></a>
@@ -27,7 +24,22 @@
 <a class="addthis_button_preferred_4"></a>
 <a class="addthis_button_compact"></a>
 </div>
+<div class="ads">
+<h3>Advertisements</h3>
+<!-- Animation bottom box -->
+     <ins class="adsbygoogle"
+     	  style="display:inline-block;width:336px;height:280px"
+     	  data-ad-client="ca-pub-2944405362154697"
+     	  data-ad-slot="3311941562"></ins>
+</div>
+
+<?php wp_footer(); ?>
+
 <script type="text/javascript" src="//s7.addthis.com/js/300/addthis_widget.js#pubid=xa-52d1cfeb3d35c878"></script>
 <!-- AddThis Button END -->
+<script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
 </body>
 </html>

@@ -153,3 +153,6 @@ for (( TIME = ${START}; TIME <= ${END}; TIME+=${TIMESTEP} )); do
 			download "aggr" ${AGGREGATION_LAYER} ${TIME} ${FAST}
 		fi
 done
+echo -n "Cleaning up.."
+rm -r ${TMP}
+echo "done"

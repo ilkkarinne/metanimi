@@ -13,27 +13,6 @@ ARCHIVE_BASE=../data.metanimi.com/archive/radar/fin_south
 S3_VIDEO_BASE=s3://data.metanimi.com/video/radar/daily/fin_south
 TMP=/var/tmp/metanimi_video_$$
 
-function updateIndex(){
-	local VIDEO_FILES=`aws --profile metanimi s3 ls ${S3_VIDEO_BASE}/ | grep ".webm" | awk '{print $4}'`
-	local PARTS=
-	local OUT='{"clips": ['
-	local START=
-	local END=
-	for FNAME in ${VIDEO_FILES}; do
-		PARTS=(${FNAME//_/ })
-		START=`date -ju -v0S -f "%Y-%m-%dT%H-%M" ${PARTS[4]}T${PARTS[5]} +%s`
-		END=`date -ju -v0S -f "%Y-%m-%dT%H-%M" ${PARTS[6]}T${PARTS[7]%\.webm} +%s`
-		OUT+="{ \"start\": \"`date -ju -f %s ${START} +%Y-%m-%dT%H:%M`:00.000 Z\","
-		OUT+="\"end\": \"`date -ju -f %s ${END} +%Y-%m-%dT%H:%M`:00.000 Z\","
-		OUT+="\"fname\": \"${PARTS[0]}_${PARTS[1]}_${PARTS[2]}_${PARTS[3]}_${PARTS[4]}_${PARTS[5]}_${PARTS[6]}_${PARTS[7]%\.webm}\" },"
-	done
-	OUT=${OUT%?}
-	OUT+=']}'
-	echo ${OUT} > ${VIDEO_BASE}/index.json
-	aws --profile metanimi s3 cp ${VIDEO_BASE}/index.json ${S3_VIDEO_BASE}/ --no-guess-mime-type --content-type "application/javascript" --acl public-read --cache-control "max-age=0, must-revalidate"
-	return $?
-}
-
 while [[ $# > 0 ]]; do
 	key="$1"
 	shift
@@ -65,14 +44,6 @@ fi
 if [ "${END}" = "" ]
 then
 		END=`date -j -v+23H -v+59M -v+59S -f '%s' ${START} +%s`
-fi
-
-START_STAMP=`date -ju -f '%s' ${START} +%Y-%m-%dT%H:%M:%S`.000Z
-END_STAMP=`date -ju -v+1S -f '%s' ${END} +%Y-%m-%dT%H:%M:%S`.000Z
-./load_daily.sh --start ${START_STAMP} --end ${END_STAMP} --fast
-RETVAL=$?
-if [ ! ${RETVAL} -eq 0 ]; then
-	exit ${RETVAL}
 fi
 for (( TIME = ${START}; TIME <= ${END}; TIME+=300 )); do
 		ARCHIVE_DIR=`date -ju -f '%s' ${TIME} +%Y-%m-%d`
@@ -138,15 +109,7 @@ then
 		FRAME_BASE_NAME='rad_%d.png'
 	fi
 	ffmpeg -v quiet -y -loop 1 -i ${BASE} -i ${TMP}/${FRAME_BASE_NAME} -i ${OVERLAY} -filter_complex "overlay [tmp]; [tmp] overlay" -c:v libvpx -crf 10 -b:v 4M -c:a copy -vframes ${FRAMES} -f webm ${OUT}.webm
-	RETVAL=$?
-	if [ ! ${RETVAL} -eq 0 ]; then
-		exit ${RETVAL}
-	fi
 	ffmpeg -v quiet -y -loop 1 -i ${BASE} -i ${TMP}/${FRAME_BASE_NAME} -i ${OVERLAY} -filter_complex "overlay [tmp]; [tmp] overlay" -c:v libx264 -tune animation -movflags +faststart -profile:v main -level 4.0 -crf 23 -c:a copy -vframes ${FRAMES} -f mp4 ${OUT}.mp4
-	RETVAL=$?
-	if [ ! ${RETVAL} -eq 0 ]; then
-		exit ${RETVAL}
-	fi
 	echo "done."
 	
 	EXPIRES_DATE=`date -v+12m +'%a, %d %b %Y 00:00:01 GMT'`
@@ -168,21 +131,9 @@ then
 			echo "Error in storing video."
 		fi
 	fi
-	updateIndex
-	RETVAL=$?
-	if [ ! ${RETVAL} -eq 0 ]; then
-		echo "Error updating video index."
-	else
-		echo "done."
-	fi
 else
 	echo "No input images, nothing to do."
 fi
-./create_month_thumbs.sh --month `date -j -f '%s' ${END} +%Y-%m`
-RETVAL=$?
-if [ ! ${RETVAL} -eq 0 ]; then
-	echo "Error creating thumbnails"
-fi 
 echo -n "Cleaning up.."
 rm -r ${TMP}
 echo "done."
