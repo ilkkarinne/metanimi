@@ -5,16 +5,21 @@ WIDTH=1280
 HEIGHT=720
 BASE=metanim_radar_anim_southern_finland_base_720p.png
 OVERLAY=metanim_radar_anim_southern_finland_overlay_720p.png
+VIDEO_BASE=${HOME}/video/radar/daily/fin_south
+ARCHIVE_BASE=${HOME}/archive/radar/fin_south
+S3_VIDEO_BASE=s3://data.metanimi.com/video/radar/daily/fin_south
+AWS_CLI=/usr/local/bin/aws
+CONVERT=/usr/bin/convert
+FFMPEG=/usr/bin/ffmpeg
+LOAD_DAILY=${HOME}/git/metanimi/scripts/load_daily.sh
+CREATE_MONTH_THUMBS=${HOME}/git/metanimi/scripts/create_month_thumbs.sh
+TMP=/var/tmp/metanimi_video_$$
 TIMESTR=
 TIMESTAMP=
 ARCHIVE_DIR=
-VIDEO_BASE=../data.metanimi.com/video/radar/daily/fin_south
-ARCHIVE_BASE=../data.metanimi.com/archive/radar/fin_south
-S3_VIDEO_BASE=s3://data.metanimi.com/video/radar/daily/fin_south
-TMP=/var/tmp/metanimi_video_$$
 
 function updateIndex(){
-	local VIDEO_FILES=`aws --profile metanimi s3 ls ${S3_VIDEO_BASE}/ | grep ".webm" | awk '{print $4}'`
+	local VIDEO_FILES=`${AWS_CLI} s3 ls ${S3_VIDEO_BASE}/ | grep ".webm" | awk '{print $4}'`
 	local PARTS=
 	local OUT='{"clips": ['
 	local START=
@@ -30,7 +35,7 @@ function updateIndex(){
 	OUT=${OUT%?}
 	OUT+=']}'
 	echo ${OUT} > ${VIDEO_BASE}/index.json
-	aws --profile metanimi s3 cp ${VIDEO_BASE}/index.json ${S3_VIDEO_BASE}/ --no-guess-mime-type --content-type "application/javascript" --acl public-read --cache-control "max-age=0, must-revalidate"
+	${AWS_CLI} s3 cp ${VIDEO_BASE}/index.json ${S3_VIDEO_BASE}/ --no-guess-mime-type --content-type "application/javascript" --acl public-read --cache-control "max-age=0, must-revalidate"
 	return $?
 }
 
@@ -69,7 +74,7 @@ fi
 
 START_STAMP=`date -ju -f '%s' ${START} +%Y-%m-%dT%H:%M:%S`.000Z
 END_STAMP=`date -ju -v+1S -f '%s' ${END} +%Y-%m-%dT%H:%M:%S`.000Z
-./load_daily.sh --start ${START_STAMP} --end ${END_STAMP} --fast
+${LOAD_DAILY} --start ${START_STAMP} --end ${END_STAMP} --fast
 RETVAL=$?
 if [ ! ${RETVAL} -eq 0 ]; then
 	exit ${RETVAL}
@@ -83,12 +88,12 @@ for (( TIME = ${START}; TIME <= ${END}; TIME+=300 )); do
 		then
 			echo -n "${TIMESTAMP}: Processing and adding timestamp.."
 			IND=`expr ${IND} + 1`
-			convert -quiet ${ARCHIVE}/orig_${TIMESTR}.tiff -alpha set -transparent 'rgb(204,204,204)' -alpha extract -alpha off -negate ${TMP}/mask_$TIMESTR.png
+			${CONVERT} -quiet ${ARCHIVE}/orig_${TIMESTR}.tiff -alpha set -transparent 'rgb(204,204,204)' -alpha extract -alpha off -negate ${TMP}/mask_$TIMESTR.png
 			RETVAL=$?
 			if [ ! ${RETVAL} -eq 0 ]; then
 				exit ${RETVAL}
 			fi
-			convert -quiet ${ARCHIVE}/orig_${TIMESTR}.tiff -median 4 -mask ${TMP}/mask_${TIMESTR}.png -attenuate 10 +noise uniform +mask -transparent 'rgb(204,204,204)' -annotate +10+10 "${TIMESTAMP}" -define png:color-type=6 ${TMP}/rad_${IND}.png
+			${CONVERT} -quiet ${ARCHIVE}/orig_${TIMESTR}.tiff -median 4 -mask ${TMP}/mask_${TIMESTR}.png -attenuate 10 +noise uniform +mask -transparent 'rgb(204,204,204)' -annotate +10+10 "${TIMESTAMP}" -define png:color-type=6 ${TMP}/rad_${IND}.png
 			RETVAL=$?
 			if [ ! ${RETVAL} -eq 0 ]; then
 				exit ${RETVAL}
@@ -100,12 +105,12 @@ for (( TIME = ${START}; TIME <= ${END}; TIME+=300 )); do
 			then
 				echo -n "Failed to get source image ${TIMESTR}, using previous time ${PREV_TIMESTR} instead.."
 				IND=`expr ${IND} + 1`
-				convert -quiet $ARCHIVE/orig_${PREV_TIMESTR}.tiff -alpha set -transparent 'rgb(204,204,204)' -alpha extract -alpha off -negate ${TMP}/mask_${TIMESTR}.png
+				${CONVERT} -quiet $ARCHIVE/orig_${PREV_TIMESTR}.tiff -alpha set -transparent 'rgb(204,204,204)' -alpha extract -alpha off -negate ${TMP}/mask_${TIMESTR}.png
 				RETVAL=$?
 				if [ ! ${RETVAL} -eq 0 ]; then
 					exit ${RETVAL}
 				fi
-				convert -quiet ${ARCHIVE}/orig_${PREV_TIMESTR}.tiff -median 4 -mask ${TMP}/mask_${TIMESTR}.png -attenuate 10 +noise uniform +mask -transparent 'rgb(204,204,204)' -annotate +10+10 "${TIMESTAMP}*" -define png:color-type=6 $TMP/rad_$IND.png
+				${CONVERT} -quiet ${ARCHIVE}/orig_${PREV_TIMESTR}.tiff -median 4 -mask ${TMP}/mask_${TIMESTR}.png -attenuate 10 +noise uniform +mask -transparent 'rgb(204,204,204)' -annotate +10+10 "${TIMESTAMP}*" -define png:color-type=6 $TMP/rad_$IND.png
 				RETVAL=$?
 				if [ ! ${RETVAL} -eq 0 ]; then
 					exit ${RETVAL}
@@ -119,7 +124,7 @@ then
 	echo "$IND source images prepared for the video"
 	if [ ${MORPH_IMAGES} -gt 0 ]; then
 		echo -n "Interpolating ${MORPH_IMAGES} frames between every original image.."
-		convert "${TMP}/rad_%d.png[1-${IND}]" -morph ${MORPH_IMAGES} -define png:color-type=6 ${TMP}/rad_%d.morph.png
+		${CONVERT} "${TMP}/rad_%d.png[1-${IND}]" -morph ${MORPH_IMAGES} -define png:color-type=6 ${TMP}/rad_%d.morph.png
 		RETVAL=$?
 		if [ ! ${RETVAL} -eq 0 ]; then
 			exit ${RETVAL}
@@ -137,12 +142,12 @@ then
 	else
 		FRAME_BASE_NAME='rad_%d.png'
 	fi
-	ffmpeg -v quiet -y -loop 1 -i ${BASE} -i ${TMP}/${FRAME_BASE_NAME} -i ${OVERLAY} -filter_complex "overlay [tmp]; [tmp] overlay" -c:v libvpx -crf 10 -b:v 4M -c:a copy -vframes ${FRAMES} -f webm ${OUT}.webm
+	${FFMPEG} -v quiet -y -loop 1 -i ${BASE} -i ${TMP}/${FRAME_BASE_NAME} -i ${OVERLAY} -filter_complex "overlay [tmp]; [tmp] overlay" -c:v libvpx -crf 10 -b:v 4M -c:a copy -vframes ${FRAMES} -f webm ${OUT}.webm
 	RETVAL=$?
 	if [ ! ${RETVAL} -eq 0 ]; then
 		exit ${RETVAL}
 	fi
-	ffmpeg -v quiet -y -loop 1 -i ${BASE} -i ${TMP}/${FRAME_BASE_NAME} -i ${OVERLAY} -filter_complex "overlay [tmp]; [tmp] overlay" -c:v libx264 -tune animation -movflags +faststart -profile:v main -level 4.0 -crf 23 -c:a copy -vframes ${FRAMES} -f mp4 ${OUT}.mp4
+	${FFMPEG} -v quiet -y -loop 1 -i ${BASE} -i ${TMP}/${FRAME_BASE_NAME} -i ${OVERLAY} -filter_complex "overlay [tmp]; [tmp] overlay" -c:v libx264 -tune animation -movflags +faststart -profile:v main -level 4.0 -crf 23 -c:a copy -vframes ${FRAMES} -f mp4 ${OUT}.mp4
 	RETVAL=$?
 	if [ ! ${RETVAL} -eq 0 ]; then
 		exit ${RETVAL}
@@ -153,7 +158,7 @@ then
 	if [ -f "${OUT}.webm" ]
 	then
 		echo -n "Storing webm video to S3.."
-		aws --profile metanimi s3 cp ${OUT}.webm ${S3_VIDEO_BASE}/ --no-guess-mime-type --content-type 'video/webm' --acl public-read --cache-control 'public' --expires "${EXPIRES_DATE}"
+		${AWS_CLI} s3 cp ${OUT}.webm ${S3_VIDEO_BASE}/ --no-guess-mime-type --content-type 'video/webm' --acl public-read --cache-control 'public' --expires "${EXPIRES_DATE}"
 		RETVAL=$?
 		if [ ! ${RETVAL} -eq 0 ]; then
 			echo "Error in storing video."
@@ -162,7 +167,7 @@ then
 	if [ -f "${OUT}.mp4" ]
 	then
 		echo -n "Storing mpeg4 video to S3.."
-		aws --profile metanimi s3 cp ${OUT}.mp4 ${S3_VIDEO_BASE}/ --no-guess-mime-type --content-type 'video/mp4' --acl public-read --cache-control 'public' --expires "${EXPIRES_DATE}"
+		${AWS_CLI} s3 cp ${OUT}.mp4 ${S3_VIDEO_BASE}/ --no-guess-mime-type --content-type 'video/mp4' --acl public-read --cache-control 'public' --expires "${EXPIRES_DATE}"
 		RETVAL=$?
 		if [ ! ${RETVAL} -eq 0 ]; then
 			echo "Error in storing video."
@@ -178,7 +183,7 @@ then
 else
 	echo "No input images, nothing to do."
 fi
-./create_month_thumbs.sh --month `date -j -f '%s' ${END} +%Y-%m`
+${CREATE_MONTH_THUMBS} --month `date -j -f '%s' ${END} +%Y-%m`
 RETVAL=$?
 if [ ! ${RETVAL} -eq 0 ]; then
 	echo "Error creating thumbnails"

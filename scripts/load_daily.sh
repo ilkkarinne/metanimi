@@ -12,10 +12,15 @@ HEIGHT=720
 LAYER=suomi_dbz_eureffin
 AGGREGATION_LAYER=suomi_rr24h_eureffin
 FMI_APIKEY=ffc6c172-4fc3-4b9e-bdc4-7c1031bb5b90
-ARCHIVE_BASE=../data.metanimi.com/archive/radar/fin_south
 S3_BUCKET=data.metanimi.com
 S3_KEY_BASE=archive/radar/fin_south
 TMP=/var/tmp/metanimi_loader_$$
+
+ARCHIVE_BASE=${HOME}/archive/radar/fin_south
+AWS_CLI=/usr/local/bin/aws
+WGET=/usr/bin/wget
+GDALINFO=/usr/bin/gdalinfo
+GDAL_TRANSLATE=/usr/bin/gdal_translate
 
 function download(){
 	local BASENAME=${1}
@@ -32,18 +37,18 @@ function download(){
 	
 	if [ ! -f ${ARCHIVE}/${BASENAME}_$TIMESTR.tiff ]; then
 		echo -n "Fetching $BASENAME $TIMESTAMP from the remote archive.."
-		aws --profile metanimi s3 cp s3://${S3_BUCKET}/${S3_KEY_BASE}/${ARCHIVE_DIR}/${BASENAME}_${TIMESTR}.tiff ${ARCHIVE}/
+		${AWS_CLI} --profile metanimi s3 cp s3://${S3_BUCKET}/${S3_KEY_BASE}/${ARCHIVE_DIR}/${BASENAME}_${TIMESTR}.tiff ${ARCHIVE}/
 		if [ ! -f ${ARCHIVE}/${BASENAME}_${TIMESTR} ]; then
 			STORED_IN_S3=-1
 		  echo "Not found."
 		  echo -n "Fetching ${BASENAME} ${TIMESTAMP} from wms.fmi.fi.."
-			wget -q -O ${TMP}/${BASENAME}_${TIMESTR}.tiff "http://wms.fmi.fi/fmi-apikey/${FMI_APIKEY}/geoserver/Radar/wms?service=WMS&version=1.3.0&request=GetMap&layers=${LAYERNAME}&width=${WIDTH}&height=${HEIGHT}&format=image/geotiff&BBOX=${XMIN},${YMIN},${XMAX},${YMAX}&CRS=${CRS}&transparent=true&time=${TIMESTR}"
+			${WGET} -q -O ${TMP}/${BASENAME}_${TIMESTR}.tiff "http://wms.fmi.fi/fmi-apikey/${FMI_APIKEY}/geoserver/Radar/wms?service=WMS&version=1.3.0&request=GetMap&layers=${LAYERNAME}&width=${WIDTH}&height=${HEIGHT}&format=image/geotiff&BBOX=${XMIN},${YMIN},${XMAX},${YMAX}&CRS=${CRS}&transparent=true&time=${TIMESTR}"
 			if [ -f ${TMP}/${BASENAME}_${TIMESTR}.tiff ]; then
-				gdalinfo -stats ${TMP}/${BASENAME}_${TIMESTR}.tiff | grep "ColorInterp=Palette" > /dev/null
+				${GDALINFO} -stats ${TMP}/${BASENAME}_${TIMESTR}.tiff | grep "ColorInterp=Palette" > /dev/null
 				if [ $? -eq 0 ]; then
 					echo "OK."
 					echo -n "Compressing GeoTIFF for archiving.."
-					gdal_translate -quiet -co compress=lzw ${TMP}/${BASENAME}_${TIMESTR}.tiff ${ARCHIVE}/${BASENAME}_${TIMESTR}.tiff
+					${GDAL_TRANSLATE} -quiet -co compress=lzw ${TMP}/${BASENAME}_${TIMESTR}.tiff ${ARCHIVE}/${BASENAME}_${TIMESTR}.tiff
 					if [ $? -eq 0 ]; then
 						echo "done."
 					else
@@ -65,7 +70,7 @@ function download(){
 	if [ -f ${ARCHIVE}/${BASENAME}_${TIMESTR}.tiff ] && [ ${SKIP_S3_CHECK} -eq 0 ]; then
 		if [ $STORED_IN_S3 -eq 0 ] ; then
 			echo -n "Check if this archive file is already stored in S3.."
-			aws --profile metanimi s3api head-object --bucket ${S3_BUCKET} --key ${S3_KEY_BASE}/${ARCHIVE_DIR}/${BASENAME}_${TIMESTR}.tiff
+			${AWS_CLI} s3api head-object --bucket ${S3_BUCKET} --key ${S3_KEY_BASE}/${ARCHIVE_DIR}/${BASENAME}_${TIMESTR}.tiff
 			if [ ! $? -eq 0 ]; then
 				STORED_IN_S3=-1
 			else
@@ -74,7 +79,7 @@ function download(){
 		fi
 		if [ ${STORED_IN_S3} -eq -1 ]; then
 			echo -n "Uploading to S3.."
-			aws --profile metanimi s3 cp ${ARCHIVE}/${BASENAME}_${TIMESTR}.tiff s3://${S3_BUCKET}/${S3_KEY_BASE}/${ARCHIVE_DIR}/ --no-guess-mime-type --content-type "image/tiff"
+			${AWS_CLI} s3 cp ${ARCHIVE}/${BASENAME}_${TIMESTR}.tiff s3://${S3_BUCKET}/${S3_KEY_BASE}/${ARCHIVE_DIR}/ --no-guess-mime-type --content-type "image/tiff"
 			if [ $? -eq 0 ]; then
 				echo "done."
 			else
@@ -120,7 +125,7 @@ if [ "${START}" = "" ]; then
 		if [ ! ${END_HOURS_OFFSET} -eq 0 ]; then
 			END=`date -j -v-"${END_HOURS_OFFSET}"H -v59M -v59S +%s`
 		else
-			END=`date -j -v59M -v59S +%s`
+			END=`date -j -v-1H -v59M -v59S +%s`
 		fi
 	fi
 else
