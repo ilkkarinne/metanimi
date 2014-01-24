@@ -21,7 +21,7 @@ AWS_CLI=aws
 WGET=wget
 GDALINFO=gdalinfo
 GDAL_TRANSLATE=gdal_translate
-DATE=date
+DATE=gdate
 
 function download(){
 	local BASENAME=${1}
@@ -39,7 +39,7 @@ function download(){
 	if [ ! -f ${ARCHIVE}/${BASENAME}_$TIMESTR.tiff ]; then
 		echo -n "Fetching $BASENAME $TIMESTAMP from the remote archive.."
 		${AWS_CLI} s3 cp s3://${S3_BUCKET}/${S3_KEY_BASE}/${ARCHIVE_DIR}/${BASENAME}_${TIMESTR}.tiff ${ARCHIVE}/
-		if [ ! -f ${ARCHIVE}/${BASENAME}_${TIMESTR} ]; then
+		if [ ! -f ${ARCHIVE}/${BASENAME}_${TIMESTR}.tiff ]; then
 			STORED_IN_S3=-1
 		  echo "Not found."
 		  echo -n "Fetching ${BASENAME} ${TIMESTAMP} from wms.fmi.fi.."
