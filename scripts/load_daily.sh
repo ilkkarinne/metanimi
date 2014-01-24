@@ -16,11 +16,12 @@ S3_BUCKET=data.metanimi.com
 S3_KEY_BASE=archive/radar/fin_south
 TMP=/var/tmp/metanimi_loader_$$
 
-ARCHIVE_BASE=${HOME}/archive/radar/fin_south
-AWS_CLI=/usr/local/bin/aws
-WGET=/usr/bin/wget
-GDALINFO=/usr/bin/gdalinfo
-GDAL_TRANSLATE=/usr/bin/gdal_translate
+ARCHIVE_BASE=${HOME}/git/metanimi/data.metanimi.com/archive/radar/fin_south
+AWS_CLI=aws
+WGET=wget
+GDALINFO=gdalinfo
+GDAL_TRANSLATE=gdal_translate
+DATE=gdate
 
 function download(){
 	local BASENAME=${1}
@@ -28,16 +29,16 @@ function download(){
 	local TIME=${3}
 	local SKIP_S3_CHECK=${4}
 	
-	local TIMESTR=`date -ju -f '%s' ${TIME} +%Y-%m-%dT%H:%M:%S.000Z`
-	local TIMESTAMP=`date -ju -f '%s' ${TIME} '+%Y-%m-%d at %H:%M UTC'`
-	local ARCHIVE_DIR=`date -ju -f '%s' ${TIME} +%Y-%m-%d`
+	local TIMESTR=`${DATE} -u -d "1970-01-01 UTC +${TIME} seconds" +%Y-%m-%dT%H:%M:%S.000Z`
+	local TIMESTAMP=`${DATE} -u -d "1970-01-01 UTC +${TIME} seconds" '+%Y-%m-%d at %H:%M UTC'`
+	local ARCHIVE_DIR=`${DATE} -u -d "1970-01-01 UTC +${TIME} seconds" +%Y-%m-%d`
 	local ARCHIVE=${ARCHIVE_BASE}/${ARCHIVE_DIR}
 	local STORED_IN_S3=0
 	mkdir -p ${ARCHIVE}
 	
 	if [ ! -f ${ARCHIVE}/${BASENAME}_$TIMESTR.tiff ]; then
 		echo -n "Fetching $BASENAME $TIMESTAMP from the remote archive.."
-		${AWS_CLI} --profile metanimi s3 cp s3://${S3_BUCKET}/${S3_KEY_BASE}/${ARCHIVE_DIR}/${BASENAME}_${TIMESTR}.tiff ${ARCHIVE}/
+		${AWS_CLI} s3 cp s3://${S3_BUCKET}/${S3_KEY_BASE}/${ARCHIVE_DIR}/${BASENAME}_${TIMESTR}.tiff ${ARCHIVE}/
 		if [ ! -f ${ARCHIVE}/${BASENAME}_${TIMESTR} ]; then
 			STORED_IN_S3=-1
 		  echo "Not found."
@@ -99,11 +100,11 @@ while [[ $# > 0 ]]; do
 	shift
 	case $key in
     -s|--start)
-    START=`date -ju -f '%Y-%m-%dT%H:%M:%S.000Z' ${1} +%s`
+    START=`${DATE} -d "${1}" +%s`
     shift
     ;;
     -e|--end)
-		END=`date -ju -f '%Y-%m-%dT%H:%M:%S.000Z' ${1} +%s`
+		END=`${DATE} -d "${1}" +%s`
     shift
     ;;
     -f|--fast)
@@ -116,24 +117,23 @@ while [[ $# > 0 ]]; do
 done
 
 if [ "${START}" = "" ]; then
+	START=`${DATE} -d "-\`${DATE} +%M\` minute -\`${DATE} +%S\` second" +%s`
 	if [ ! ${START_HOURS_OFFSET} -eq 0 ]; then
-		START=`date -j -v-"${START_HOURS_OFFSET}"H -v0M -v0S +%s`
-	else
-		START=`date -j -v0M -v0S +%s`
+		START=`${DATE} -d "1970-01-01 UTC +${START} second -${START_HOURS_OFFSET} hour" +%s`
 	fi
 	if [ "${END}" = "" ]; then
+		END=`${DATE} -d "-\`${DATE} +%M\` minute -\`${DATE} +%S\` second -1 hour +59 minute +59 second" +%s`
 		if [ ! ${END_HOURS_OFFSET} -eq 0 ]; then
-			END=`date -j -v-"${END_HOURS_OFFSET}"H -v59M -v59S +%s`
-		else
-			END=`date -j -v-1H -v59M -v59S +%s`
+			#END=`${DATE} -j -v-"${END_HOURS_OFFSET}"H -v59M -v59S +%s`
+			END=`${DATE} -d "1970-01-01 UTC +${END} second -${END_HOURS_OFFSET} hour" +%s`
 		fi
 	fi
 else
 	if [ "${END}" = "" ]; then
+		END=`${DATE} -d "1970-01-01 UTC +${START} second -\`${DATE} +%M\` minute -\`${DATE} +%S\` second +59 minute +59 second" +%s`
 		if [ ! ${END_HOURS_OFFSET} -eq 0 ]; then
-			END=`date -j -v-"${END_HOURS_OFFSET}"H -v59M -v59S -f '%s' ${START} +%s`
-		else
-			END=`date -j -v+23H -v+59M -v+59S -f '%s' ${START} +%s`
+			#END=`${DATE} -j -v-"${END_HOURS_OFFSET}"H -v59M -v59S -f '%s' ${START} +%s`
+			END=`${DATE} -d "1970-01-01 UTC +${END} second -${END_HOURS_OFFSET} hour" +%s`
 		fi
 	fi
 fi
@@ -141,13 +141,13 @@ fi
 if [ ${END} -lt ${START} ]; then
 	END=${START}
 fi
-echo Loading images between `date -ju -f '%s' ${START} '+%Y-%m-%d at %H:%M UTC'` and `date -ju -f '%s' ${END} '+%Y-%m-%d at %H:%M UTC'`
+echo Loading images between `${DATE} -d "1970-01-01 UTC +${START} seconds"` and `${DATE} -d "1970-01-01 UTC +${END} seconds"`
 HOUR=0
 mkdir ${TMP}
 
 for (( TIME = ${START}; TIME <= ${END}; TIME+=${TIMESTEP} )); do
 		PREV_HOUR=${HOUR}
-		HOUR=`date -j -f '%s' ${TIME} +%H`
+		HOUR=`${DATE} -d "1970-01-01 UTC +${TIME} seconds" +%H`
 		if [ ${PREV_HOUR} -gt ${HOUR} ]; then
 			LOAD_AGGREGATE=1
 		else
