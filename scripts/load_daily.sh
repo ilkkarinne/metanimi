@@ -16,12 +16,12 @@ S3_BUCKET=data.metanimi.com
 S3_KEY_BASE=archive/radar/fin_south
 TMP=/var/tmp/metanimi_loader_$$
 
-ARCHIVE_BASE=${HOME}/git/metanimi/data.metanimi.com/archive/radar/fin_south
+ARCHIVE_BASE=${HOME}/archive/radar/fin_south
 AWS_CLI=aws
 WGET=wget
 GDALINFO=gdalinfo
 GDAL_TRANSLATE=gdal_translate
-DATE=gdate
+DATE=date
 
 function download(){
 	local BASENAME=${1}
