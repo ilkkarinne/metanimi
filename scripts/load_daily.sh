@@ -15,7 +15,7 @@ FMI_APIKEY=ffc6c172-4fc3-4b9e-bdc4-7c1031bb5b90
 S3_BUCKET=data.metanimi.com
 S3_KEY_BASE=archive/radar/fin_south
 TMP=/var/tmp/metanimi_loader_$$
-
+LOCAL_TZ=Europe/Helsinki
 ARCHIVE_BASE=${HOME}/archive/radar/fin_south
 AWS_CLI=aws
 WGET=wget
@@ -38,7 +38,7 @@ function download(){
 	
 	if [ ! -f ${ARCHIVE}/${BASENAME}_$TIMESTR.tiff ]; then
 		echo -n "Fetching $BASENAME $TIMESTAMP from the remote archive.."
-		${AWS_CLI} s3 cp s3://${S3_BUCKET}/${S3_KEY_BASE}/${ARCHIVE_DIR}/${BASENAME}_${TIMESTR}.tiff ${ARCHIVE}/
+		${AWS_CLI} s3 cp --quiet s3://${S3_BUCKET}/${S3_KEY_BASE}/${ARCHIVE_DIR}/${BASENAME}_${TIMESTR}.tiff ${ARCHIVE}/
 		if [ ! -f ${ARCHIVE}/${BASENAME}_${TIMESTR}.tiff ]; then
 			STORED_IN_S3=-1
 		  echo "Not found."
@@ -80,7 +80,7 @@ function download(){
 		fi
 		if [ ${STORED_IN_S3} -eq -1 ]; then
 			echo -n "Uploading to S3.."
-			${AWS_CLI} s3 cp ${ARCHIVE}/${BASENAME}_${TIMESTR}.tiff s3://${S3_BUCKET}/${S3_KEY_BASE}/${ARCHIVE_DIR}/ --no-guess-mime-type --content-type "image/tiff"
+			${AWS_CLI} s3 cp --quiet ${ARCHIVE}/${BASENAME}_${TIMESTR}.tiff s3://${S3_BUCKET}/${S3_KEY_BASE}/${ARCHIVE_DIR}/ --no-guess-mime-type --content-type "image/tiff"
 			if [ $? -eq 0 ]; then
 				echo "done."
 			else
@@ -147,7 +147,7 @@ mkdir ${TMP}
 
 for (( TIME = ${START}; TIME <= ${END}; TIME+=${TIMESTEP} )); do
 		PREV_HOUR=${HOUR}
-		HOUR=`${DATE} -d "1970-01-01 UTC +${TIME} seconds" +%H`
+		HOUR=`${DATE} -d 'TZ='\"${LOCAL_TZ}\"' 1970-01-01 UTC +'${TIME}' second +1 second' +%H`
 		if [ ${PREV_HOUR} -gt ${HOUR} ]; then
 			LOAD_AGGREGATE=1
 		else
@@ -155,6 +155,7 @@ for (( TIME = ${START}; TIME <= ${END}; TIME+=${TIMESTEP} )); do
 		fi
 		download "orig" ${LAYER} ${TIME} ${FAST}
 		if [ ${LOAD_AGGREGATE} -eq 1 ]; then
+			echo "Last step for a local day, also downloading daily aggregate.."
 			download "aggr" ${AGGREGATION_LAYER} ${TIME} ${FAST}
 		fi
 done
