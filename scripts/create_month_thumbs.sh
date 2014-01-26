@@ -8,7 +8,7 @@ S3_THUMBS_BASE=s3://data.metanimi.com/thumbs/radar/fin_south
 ARCHIVE_BASE=${HOME}/git/metanimi/data.metanimi.com/archive/radar/fin_south
 AWS_CLI=aws
 CONVERT=convert
-DATE=gdate
+DATE=date
 ARCHIVE_DIR=
 TMP=/var/tmp/metanimi_thumb_$$
 

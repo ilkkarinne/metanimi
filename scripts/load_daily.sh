@@ -21,7 +21,7 @@ AWS_CLI=aws
 WGET=wget
 GDALINFO=gdalinfo
 GDAL_TRANSLATE=gdal_translate
-DATE=gdate
+DATE=date
 
 function download(){
 	local BASENAME=${1}
