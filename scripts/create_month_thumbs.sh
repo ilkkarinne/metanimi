@@ -3,11 +3,12 @@ IND=_
 WIDTH=150
 HEIGHT=84
 BASE=metanim_radar_anim_southern_finland_base_720p.png
-THUMBS_BASE=${HOME}/thumbs/radar/fin_south
+THUMBS_BASE=${HOME}/git/metanimi/data.metanimi.com/thumbs/radar/fin_south
 S3_THUMBS_BASE=s3://data.metanimi.com/thumbs/radar/fin_south
-ARCHIVE_BASE=${HOME}/archive/radar/fin_south
-AWS_CLI=/usr/local/bin/aws
-CONVERT=/usr/bin/convert
+ARCHIVE_BASE=${HOME}/git/metanimi/data.metanimi.com/archive/radar/fin_south
+AWS_CLI=aws
+CONVERT=convert
+DATE=gdate
 ARCHIVE_DIR=
 TMP=/var/tmp/metanimi_thumb_$$
 
@@ -16,7 +17,8 @@ while [[ $# > 0 ]]; do
 	shift
 	case $key in
     -m|--month)
-    START=`date -j -v2d -v0H -v0M -v0S -f '%Y-%m' ${1} +%s`
+    #START=`${DATE} -j -v2d -v0H -v0M -v0S -f '%Y-%m' ${1} +%s`
+		START=`${DATE} -d "${1}-02" +%s`
     shift
 		;;
     *)
@@ -26,18 +28,23 @@ while [[ $# > 0 ]]; do
 done
 if [ "${START}" = "" ]
 then
-		START=`date -j -v1d -v0H -v0M -v0S +%s`
+		#START=`${DATE} -j -v1d -v0H -v0M -v0S +%s`
+		START=`${DATE} -d "-\`${DATE} +%d\` day -\`${DATE} +%H\` hour -\`${DATE} +%M\` minute -\`${DATE} +%S\` second +2 day" +%s`
 fi
-END=`date -j -v+1m -v-1d -f '%s' ${START} +%s`
+#END=`${DATE} -j -v+1m -v-1d -f '%s' ${START} +%s`
+END=`${DATE} -d "1970-01-01 UTC +${START} second +1 month -1 day +1 minute" +%s`
 
-echo Generating thumbnails for period `date -ju -f '%s' ${START} '+%Y-%m-%d'` - `date -ju -f '%s' ${END} '+%Y-%m-%d'`
+#echo Generating thumbnails for period `${DATE} -ju -f '%s' ${START} '+%Y-%m-%d'` - `${DATE} -ju -f '%s' ${END} '+%Y-%m-%d'`
+echo Generating thumbnails for period `${DATE} -d "1970-01-01 UTC +${START} second" +%Y-%m-%d` - `${DATE} -d "1970-01-01 UTC +${END} second" +%Y-%m-%d`
 mkdir ${TMP}
 
 for (( TIME = ${START}; TIME <= ${END}; TIME+=86400 )); do
 	IND+=_
-	ARCHIVE_DIR=`date -ju -f '%s' ${TIME} +%Y-%m-%d`
+	#ARCHIVE_DIR=`${DATE} -ju -f '%s' ${TIME} +%Y-%m-%d`
+	ARCHIVE_DIR=`${DATE} -u -d "1970-01-01 UTC +${TIME} second" +%Y-%m-%d`
 	ARCHIVE=${ARCHIVE_BASE}/${ARCHIVE_DIR}
-	TIMESTR=`date -ju -f '%s' ${TIME} +%Y-%m-%dT%H:%M:%S.000Z`
+	#TIMESTR=`${DATE} -ju -f '%s' ${TIME} +%Y-%m-%dT%H:%M:%S.000Z`
+	TIMESTR=`${DATE} -u -d "1970-01-01 UTC +${TIME} second" +%Y-%m-%dT%H:%M:%S`.000Z
 	echo -n "Generating thumbnail for ${TIMESTR}.."
 	if [ -f ${ARCHIVE}/aggr_${TIMESTR}.tiff ]; then
 		echo "aggregate found"
@@ -47,7 +54,8 @@ for (( TIME = ${START}; TIME <= ${END}; TIME+=86400 )); do
 		${CONVERT} ${BASE} -resize ${WIDTH}x${WIDTH} -define png:color-type=6 ${TMP}/thumb_${IND}.png
 	fi
 done
-TIMESTAMP=`date -ju -f '%s' ${END} '+%Y-%m'`
+#TIMESTAMP=`${DATE} -ju -f '%s' ${END} '+%Y-%m'`
+TIMESTAMP=`${DATE} -u -d "1970-01-01 UTC +${END} second" +%Y-%m`
 echo -n "Stiching thumbnails.."
 ${CONVERT} ${TMP}/thumb_*.png +append -define png:color-type=6 ${THUMBS_BASE}/thumbs_${TIMESTAMP}.png
 echo "done."

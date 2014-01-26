@@ -11,6 +11,7 @@ S3_VIDEO_BASE=s3://data.metanimi.com/video/radar/daily/fin_south
 AWS_CLI=/usr/local/bin/aws
 CONVERT=/usr/bin/convert
 FFMPEG=/usr/bin/ffmpeg
+DATE=gdate
 LOAD_DAILY=${HOME}/git/metanimi/scripts/load_daily.sh
 CREATE_MONTH_THUMBS=${HOME}/git/metanimi/scripts/create_month_thumbs.sh
 TMP=/var/tmp/metanimi_video_$$
@@ -24,12 +25,20 @@ function updateIndex(){
 	local OUT='{"clips": ['
 	local START=
 	local END=
+	local TIME_PART=
 	for FNAME in ${VIDEO_FILES}; do
 		PARTS=(${FNAME//_/ })
-		START=`date -ju -v0S -f "%Y-%m-%dT%H-%M" ${PARTS[4]}T${PARTS[5]} +%s`
-		END=`date -ju -v0S -f "%Y-%m-%dT%H-%M" ${PARTS[6]}T${PARTS[7]%\.webm} +%s`
-		OUT+="{ \"start\": \"`date -ju -f %s ${START} +%Y-%m-%dT%H:%M`:00.000 Z\","
-		OUT+="\"end\": \"`date -ju -f %s ${END} +%Y-%m-%dT%H:%M`:00.000 Z\","
+		#START=`date -ju -v0S -f "%Y-%m-%dT%H-%M" ${PARTS[4]}T${PARTS[5]} +%s`
+		TIME_PART=${PARTS[5]//-/:}
+		START=`${DATE} -d "${PARTS[4]}T${TIME_PART} UTC -\`${DATE} +%S\` second" +%s`
+		#END=`date -ju -v0S -f "%Y-%m-%dT%H-%M" ${PARTS[6]}T${PARTS[7]%\.webm} +%s`
+		TIME_PART=${PARTS[7]//-/:}
+		TIME_PART=${TIME_PART%\.webm}
+		END=`${DATE} -d "${PARTS[6]}T${TIME_PART} UTC -\`${DATE} +%S\` second" +%s`
+		#OUT+="{ \"start\": \"`date -ju -f %s ${START} +%Y-%m-%dT%H:%M`:00.000 Z\","
+		OUT="\"start\": \"`${DATE} -u -d "1970-01-01 UTC +${START} seconds" +%Y-%m-%dT%H:%M`00.000 Z\","
+		#OUT+="\"end\": \"`date -ju -f %s ${END} +%Y-%m-%dT%H:%M`:00.000 Z\","
+		OUT="\"start\": \"`${DATE} -u -d "1970-01-01 UTC +${END} seconds" +%Y-%m-%dT%H:%M`00.000 Z\","
 		OUT+="\"fname\": \"${PARTS[0]}_${PARTS[1]}_${PARTS[2]}_${PARTS[3]}_${PARTS[4]}_${PARTS[5]}_${PARTS[6]}_${PARTS[7]%\.webm}\" },"
 	done
 	OUT=${OUT%?}
@@ -44,16 +53,15 @@ while [[ $# > 0 ]]; do
 	shift
 	case $key in
     -s|--start)
-    START=`date -j -v0H -v0M -v0S -f '%Y-%m-%d' ${1} +%s`
+    START=`${DATE} -d "${1}" +%s`
     shift
     ;;
     -e|--end)
-		END=`date -j -v23H -v59M -v59S -f '%Y-%m-%d' ${1} +%s`
+		END=`${DATE} -d "${1}" +%s`
     shift
     ;;
-    -m|--morph)
-		MORPH_IMAGES=${1}
-		shift
+    -f|--fast)
+    FAST=1
     ;;
     *)
             # unknown option
@@ -65,15 +73,19 @@ mkdir ${TMP}
 
 if [ "${START}" = "" ]
 then
-		START=`date -j -v-1d -v0H -v0M -v0S +%s`
+		#START=`date -j -v-1d -v0H -v0M -v0S +%s`
+		START=`${DATE} -d "-\`${DATE} +%H\` hour -\`${DATE} +%M\` minute -\`${DATE} +%S\` second -1 day" +%s`
 fi
 if [ "${END}" = "" ]
 then
-		END=`date -j -v+23H -v+59M -v+59S -f '%s' ${START} +%s`
+		#END=`date -j -v+23H -v+59M -v+59S -f '%s' ${START} +%s`
+		END=`${DATE} -d "1970-01-01 UTC +${START} second +23 hour +59 minute +59 second" +%s`
 fi
 
-START_STAMP=`date -ju -f '%s' ${START} +%Y-%m-%dT%H:%M:%S`.000Z
-END_STAMP=`date -ju -v+1S -f '%s' ${END} +%Y-%m-%dT%H:%M:%S`.000Z
+#START_STAMP=`date -ju -f '%s' ${START} +%Y-%m-%dT%H:%M:%S`.000Z
+START_STAMP=`${DATE} -u -d "1970-01-01 UTC +${START} second" +%Y-%m-%dT%H:%M:%S`.000Z
+#END_STAMP=`date -ju -v+1S -f '%s' ${END} +%Y-%m-%dT%H:%M:%S`.000Z
+END_STAMP=`${DATE} -u -d "1970-01-01 UTC +${END} second +1 second" +%Y-%m-%dT%H:%M:%S`.000Z
 ${LOAD_DAILY} --start ${START_STAMP} --end ${END_STAMP} --fast
 RETVAL=$?
 if [ ! ${RETVAL} -eq 0 ]; then
@@ -82,8 +94,10 @@ fi
 for (( TIME = ${START}; TIME <= ${END}; TIME+=300 )); do
 		ARCHIVE_DIR=`date -ju -f '%s' ${TIME} +%Y-%m-%d`
 		ARCHIVE=${ARCHIVE_BASE}/${ARCHIVE_DIR}
-		TIMESTR=`date -ju -f '%s' ${TIME} +%Y-%m-%dT%H:%M:%S.000Z`
-		TIMESTAMP=`date -ju -f '%s' ${TIME} '+%Y-%m-%d at %H:%M UTC'`
+		#TIMESTR=`date -ju -f '%s' ${TIME} +%Y-%m-%dT%H:%M:%S.000Z`
+		TIMESTR=`${DATE} -d -u "1970-01-01 UTC +${TIME} second" +%Y-%m-%dT%H:%M:%S`.000Z
+		#TIMESTAMP=`date -ju -f '%s' ${TIME} '+%Y-%m-%d at %H:%M UTC'`
+		TIMESTR=`${DATE} -d -u "1970-01-01 UTC +${TIME} second" +%Y-%m-%d at %H:%M` UTC
 		if [ -f ${ARCHIVE}/orig_${TIMESTR}.tiff ]
 		then
 			echo -n "${TIMESTAMP}: Processing and adding timestamp.."
@@ -133,8 +147,10 @@ then
 	fi
 	FRAMES=`expr ${IND} '*' '(' ${MORPH_IMAGES} + 1 ')'`
 	OUT1='ma_rad_fin_s'
-	OUT2=`date -ju -f '%s' ${START} +%Y-%m-%d_%H-%M`
-	OUT3=`date -ju -f '%s' ${END} +%Y-%m-%d_%H-%M`
+	#OUT2=`date -ju -f '%s' ${START} +%Y-%m-%d_%H-%M`
+	OUT2=`${DATE} -d -u "1970-01-01 UTC +${START} second" +%Y-%m-%d_%H-%M`
+	#OUT3=`date -ju -f '%s' ${END} +%Y-%m-%d_%H-%M`
+	OUT2=`${DATE} -d -u "1970-01-01 UTC +${END} second" +%Y-%m-%d_%H-%M`
 	OUT=${VIDEO_BASE}/${OUT1}'_'${OUT2}'_'${OUT3}
 	echo -n "Creating movie ${OUT} from the ${FRAMES} source images.."
 	if [ ${MORPH_IMAGES} -gt 0 ]; then
@@ -154,7 +170,8 @@ then
 	fi
 	echo "done."
 	
-	EXPIRES_DATE=`date -v+12m +'%a, %d %b %Y 00:00:01 GMT'`
+	#EXPIRES_DATE=`date -v+12m +'%a, %d %b %Y 00:00:01 GMT'`
+	EXPIRES_DATE=`${DATE} -d -u "1970-01-01 UTC +${END} second +1 year" "%a, %d %b %Y"` 00:00:01 GMT
 	if [ -f "${OUT}.webm" ]
 	then
 		echo -n "Storing webm video to S3.."
@@ -183,7 +200,8 @@ then
 else
 	echo "No input images, nothing to do."
 fi
-${CREATE_MONTH_THUMBS} --month `date -j -f '%s' ${END} +%Y-%m`
+#${CREATE_MONTH_THUMBS} --month `date -j -f '%s' ${END} +%Y-%m`
+${CREATE_MONTH_THUMBS} --month `${DATE} -d "1970-01-01 UTC +${END} second" +%Y-%m`
 RETVAL=$?
 if [ ! ${RETVAL} -eq 0 ]; then
 	echo "Error creating thumbnails"
