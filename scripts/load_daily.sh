@@ -14,8 +14,8 @@ AGGREGATION_LAYER=suomi_rr24h_eureffin
 FMI_APIKEY=ffc6c172-4fc3-4b9e-bdc4-7c1031bb5b90
 S3_BUCKET=data.metanimi.com
 S3_KEY_BASE=archive/radar/fin_south
-TMP=/var/tmp/metanimi_loader_$$
-LOCAL_TZ=Europe/Helsinki
+TMP=/mnt/tmp/metanimi_loader_$$
+TZ=Europe/Helsinki
 ARCHIVE_BASE=${HOME}/archive/radar/fin_south
 AWS_CLI=aws
 WGET=wget
@@ -147,7 +147,7 @@ mkdir ${TMP}
 
 for (( TIME = ${START}; TIME <= ${END}; TIME+=${TIMESTEP} )); do
 		PREV_HOUR=${HOUR}
-		HOUR=`${DATE} -d 'TZ='\"${LOCAL_TZ}\"' 1970-01-01 UTC +'${TIME}' second +1 second' +%H`
+		HOUR=`${DATE} -d "1970-01-01 UTC +${TIME} second +1 second" +%H`
 		if [ ${PREV_HOUR} -gt ${HOUR} ]; then
 			LOAD_AGGREGATE=1
 		else

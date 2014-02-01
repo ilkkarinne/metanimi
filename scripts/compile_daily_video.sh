@@ -8,13 +8,16 @@ OVERLAY=metanim_radar_anim_southern_finland_overlay_720p.png
 VIDEO_BASE=${HOME}/video/radar/daily/fin_south
 ARCHIVE_BASE=${HOME}/archive/radar/fin_south
 S3_VIDEO_BASE=s3://data.metanimi.com/video/radar/daily/fin_south
+IM_OPTIONS="-limit memory 2.5GiB -limit map 2.5GiB"
 AWS_CLI=/usr/local/bin/aws
-CONVERT=/usr/bin/convert
-FFMPEG=/usr/bin/ffmpeg
+CONVERT="/usr/bin/convert ${IM_OPTIONS}"
+FFMPEG=${HOME}/bin/ffmpeg
 DATE=date
 LOAD_DAILY=${HOME}/git/metanimi/scripts/load_daily.sh
 CREATE_MONTH_THUMBS=${HOME}/git/metanimi/scripts/create_month_thumbs.sh
-TMP=/var/tmp/metanimi_video_$$
+TMP=/mnt/tmp/metanimi_video_$$
+TZ=Europe/Helsinki
+
 TIMESTR=
 TIMESTAMP=
 ARCHIVE_DIR=
@@ -36,9 +39,9 @@ function updateIndex(){
 		TIME_PART=${TIME_PART%\.webm}
 		END=`${DATE} -d "${PARTS[6]}T${TIME_PART} UTC -\`${DATE} +%S\` second" +%s`
 		#OUT+="{ \"start\": \"`date -ju -f %s ${START} +%Y-%m-%dT%H:%M`:00.000 Z\","
-		OUT="\"start\": \"`${DATE} -u -d "1970-01-01 UTC +${START} seconds" +%Y-%m-%dT%H:%M`00.000 Z\","
+		OUT+="\"start\": \"`${DATE} -u -d "1970-01-01 UTC +${START} seconds" +%Y-%m-%dT%H:%M`00.000 Z\","
 		#OUT+="\"end\": \"`date -ju -f %s ${END} +%Y-%m-%dT%H:%M`:00.000 Z\","
-		OUT="\"start\": \"`${DATE} -u -d "1970-01-01 UTC +${END} seconds" +%Y-%m-%dT%H:%M`00.000 Z\","
+		OUT+="\"start\": \"`${DATE} -u -d "1970-01-01 UTC +${END} seconds" +%Y-%m-%dT%H:%M`00.000 Z\","
 		OUT+="\"fname\": \"${PARTS[0]}_${PARTS[1]}_${PARTS[2]}_${PARTS[3]}_${PARTS[4]}_${PARTS[5]}_${PARTS[6]}_${PARTS[7]%\.webm}\" },"
 	done
 	OUT=${OUT%?}
@@ -74,7 +77,8 @@ mkdir ${TMP}
 if [ "${START}" = "" ]
 then
 		#START=`date -j -v-1d -v0H -v0M -v0S +%s`
-		START=`${DATE} -d "-\`${DATE} +%H\` hour -\`${DATE} +%M\` minute -\`${DATE} +%S\` second -1 day" +%s`
+		START=`${DATE} -d '' +%s`
+		START=`${DATE} -d "1970-01-01 UTC +${START} seconds -1 day" +%s`
 fi
 if [ "${END}" = "" ]
 then
@@ -92,12 +96,13 @@ if [ ! ${RETVAL} -eq 0 ]; then
 	exit ${RETVAL}
 fi
 for (( TIME = ${START}; TIME <= ${END}; TIME+=300 )); do
-		ARCHIVE_DIR=`date -ju -f '%s' ${TIME} +%Y-%m-%d`
-		ARCHIVE=${ARCHIVE_BASE}/${ARCHIVE_DIR}
+		#ARCHIVE_DIR=`date -ju -f '%s' ${TIME} +%Y-%m-%d`
+    ARCHIVE_DIR=`${DATE} -u -d "1970-01-01 UTC +${TIME} second" +%Y-%m-%d`
+    ARCHIVE=${ARCHIVE_BASE}/${ARCHIVE_DIR}
 		#TIMESTR=`date -ju -f '%s' ${TIME} +%Y-%m-%dT%H:%M:%S.000Z`
-		TIMESTR=`${DATE} -d -u "1970-01-01 UTC +${TIME} second" +%Y-%m-%dT%H:%M:%S`.000Z
+		TIMESTR=`${DATE} -u  -d "1970-01-01 UTC +${TIME} second" +%Y-%m-%dT%H:%M:%S`.000Z
 		#TIMESTAMP=`date -ju -f '%s' ${TIME} '+%Y-%m-%d at %H:%M UTC'`
-		TIMESTR=`${DATE} -d -u "1970-01-01 UTC +${TIME} second" +%Y-%m-%d at %H:%M` UTC
+		TIMESTAMP=`${DATE} -u -d "1970-01-01 UTC +${TIME} second" "+%Y-%m-%d at %H:%M UTC"`
 		if [ -f ${ARCHIVE}/orig_${TIMESTR}.tiff ]
 		then
 			echo -n "${TIMESTAMP}: Processing and adding timestamp.."
@@ -148,9 +153,9 @@ then
 	FRAMES=`expr ${IND} '*' '(' ${MORPH_IMAGES} + 1 ')'`
 	OUT1='ma_rad_fin_s'
 	#OUT2=`date -ju -f '%s' ${START} +%Y-%m-%d_%H-%M`
-	OUT2=`${DATE} -d -u "1970-01-01 UTC +${START} second" +%Y-%m-%d_%H-%M`
+	OUT2=`${DATE} -u -d "1970-01-01 UTC +${START} second" +%Y-%m-%d_%H-%M`
 	#OUT3=`date -ju -f '%s' ${END} +%Y-%m-%d_%H-%M`
-	OUT2=`${DATE} -d -u "1970-01-01 UTC +${END} second" +%Y-%m-%d_%H-%M`
+	OUT3=`${DATE} -u -d "1970-01-01 UTC +${END} second" +%Y-%m-%d_%H-%M`
 	OUT=${VIDEO_BASE}/${OUT1}'_'${OUT2}'_'${OUT3}
 	echo -n "Creating movie ${OUT} from the ${FRAMES} source images.."
 	if [ ${MORPH_IMAGES} -gt 0 ]; then
@@ -171,7 +176,7 @@ then
 	echo "done."
 	
 	#EXPIRES_DATE=`date -v+12m +'%a, %d %b %Y 00:00:01 GMT'`
-	EXPIRES_DATE=`${DATE} -d -u "1970-01-01 UTC +${END} second +1 year" "%a, %d %b %Y"` 00:00:01 GMT
+	EXPIRES_DATE=`${DATE} -u -d "1970-01-01 UTC +${END} second +1 year" "%a, %d %b %Y"`"00:00:01 GMT"
 	if [ -f "${OUT}.webm" ]
 	then
 		echo -n "Storing webm video to S3.."
