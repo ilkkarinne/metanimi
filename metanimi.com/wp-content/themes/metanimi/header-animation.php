@@ -54,6 +54,7 @@
 
     <script type="text/javascript" src="<?php echo bloginfo('template_directory'); ?>/js/video-animator.js?ver=2014-01-21T20-28"></script>
     <script type="text/javascript" src="<?php echo bloginfo('template_directory'); ?>/js/scrolling-calendar.js?ver=2014-01-21T20-28"></script>
+	<script type="text/javascript" src="<?php echo bloginfo('template_directory'); ?>/js/metolib-combined-1.1.8-min.js"></script>
     <?php wp_deregister_script('jquery');wp_head(); ?>
 		<script type="text/javascript">
 		function getMissingCapabilities(){
@@ -119,7 +120,7 @@
 							   listener(time);
 							   if (ga){
 							      ga('send','event','Jump',time.format(),'Calendar selection');
-							   }								
+							   }
 							}
 
 							});
@@ -166,6 +167,15 @@ addthis_config.data_ga_property = 'UA-46653983-1';
 </head>
 
 <body <?php body_class(); ?> id="top">
+	<div id="fb-root"></div>
+    <script>(function(d, s, id) {
+        var js, fjs = d.getElementsByTagName(s)[0];
+        if (d.getElementById(id)) return;
+        js = d.createElement(s); js.id = id;
+        js.src = "//connect.facebook.net/en_GB/all.js#xfbml=1&appId=411591735641597";
+        fjs.parentNode.insertBefore(js, fjs);
+        }(document, 'script', 'facebook-jssdk'));
+      </script>
       <div class="meta">
       	   <img src="" alt="metanimi" title="Metanimi" />
       </div>

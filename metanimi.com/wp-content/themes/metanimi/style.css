@@ -150,6 +150,11 @@ footer {
     margin-right: 0.5em;
 }
 
+.fb_iframe_widget {
+	padding-left: 1em;
+	vertical-align: top;
+}
+
 /* END : Page styles */
 
 
