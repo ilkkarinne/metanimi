@@ -84,7 +84,7 @@
 			var videoBaseUrl = "<?php echo get_post_meta($wp_query->post->ID,'video_base_url',true); ?>";
 			var indexBaseUrl = "<?php echo get_post_meta($wp_query->post->ID,'index_base_url',true); ?>";
 			var start = moment('<?php echo get_post_meta($wp_query->post->ID,'start_day',true); ?>','YYYY-MM-DD');
-			var end = moment().startOf('day');
+			var end = moment().endOf('day');
 			var thumbnailProvider = function(time){
 			if (time && time.isAfter(start) && time.isBefore(end)){
 					return thumbsBaseUrl+'thumbs_'+time.format('YYYY-MM')+".png";
