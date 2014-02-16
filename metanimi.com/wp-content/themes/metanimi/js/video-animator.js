@@ -954,9 +954,9 @@ com.metanimi.VideoAnimator = (function() {
 	    if (buf.attr('data-fname') != _clips[index].fname){
 			buf.attr('data-fname',_clips[index].fname);
 			buf.empty();
-			var source = $('<source></source>').attr('type','video/webm').attr('src',_baseUrl+_clips[index].fname+'.webm');
+			var source = $('<source></source>').attr('type','video/mp4').attr('src',_baseUrl+_clips[index].fname+'.mp4');
 			buf.append(source);
-			source = $('<source></source>').attr('type','video/mp4').attr('src',_baseUrl+_clips[index].fname+'.mp4');
+			source = $('<source></source>').attr('type','video/webm').attr('src',_baseUrl+_clips[index].fname+'.webm');
 			buf.append(source);
 			source.on('error', function(){
 			    if (_errorDialog){
