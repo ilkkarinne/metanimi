@@ -12,12 +12,19 @@ IM_OPTIONS="-limit memory 2.5GiB -limit map 2.5GiB"
 AWS_CLI=/usr/local/bin/aws
 CONVERT="/usr/bin/convert ${IM_OPTIONS}"
 FFMPEG=${HOME}/bin/ffmpeg
-DATE=date
+if [[ $OSTYPE =~ ^darwin.* ]]; then
+	DATE=gdate
+else
+	DATE=date
+fi
 LOAD_DAILY=${HOME}/git/metanimi/scripts/load_daily.sh
 CREATE_MONTH_THUMBS=${HOME}/git/metanimi/scripts/create_month_thumbs.sh
-TMP=/mnt/tmp/metanimi_video_$$
+if [[ $OSTYPE =~ ^darwin.* ]]; then
+	TMP=/tmp/metanimi_video_$$
+else
+	TMP=/mnt/tmp/metanimi_video_$$
+fi
 TZ=Europe/Helsinki
-
 TIMESTR=
 TIMESTAMP=
 ARCHIVE_DIR=
